@@ -1,0 +1,374 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+#include <string.h>
+#include <windows.h>
+
+typedef struct painter {
+    int type;
+    union {
+        int birthday;//생일 어린이만
+        int adress;//주민등록 번호
+    } id;
+    char home[40];//집주소
+    char name[20];//이름
+    int checkup;//
+    char sort[100];
+} p;
+
+int number = 0;
+FILE* fp;
+#define ROW 12
+#define COLS 30
+#define adult 0
+#define child 1
+
+int n = 0; //방문자 수
+
+void gotoxy(int x, int y); // gotoxy함수
+void menu();
+void booking(p answer[]);
+void cancel(p answer[]);
+void num(p answer[]);
+void price(p answer[]);
+void information(p answer[]);
+void secret();
+
+int people[ROW][COLS] = { {0} };//12달 30일을 다 초기화
+
+void gotoxy(int x, int y) //gotoxy함수 정의
+{
+    COORD pos = { x,y };
+    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
+}
+
+//병원 메뉴
+void menu() {
+    system("cls");
+    gotoxy(28, 2);
+    printf("ㅇㅇ병원 예약 시스템 \n");
+    gotoxy(18, 4);
+    printf("****************************************\n");
+    gotoxy(28, 7);
+    printf("1... 진료 예약하기");
+    gotoxy(28, 9);
+    printf("2... 예약 취소하기");
+    gotoxy(28, 11);
+    printf("3... 환자 수 확인하기");
+    gotoxy(28, 13);
+    printf("4... 가격 확인하기");
+    gotoxy(28, 15);
+    printf("5... 예약 정보 확인하기");
+    gotoxy(28, 17);
+    printf("6... 시스템 종료\n\n");
+}
+
+int main() {
+
+    p answer[100];
+    int choice;
+    void (*pf[6])(p answer[]) = { secret, booking, cancel, num , price,information }; //함수 포인터 배열을 이용하여 사용하였습니다.
+    fp = fopen("checkup_list.txt", "a+");
+    if (fp == NULL) {
+        fprintf(stderr, "입력을 위한 파일을 열 수 없습니다. \n");
+    }
+    while (1) {
+        menu();
+        printf("\n\n메뉴를 선택하세요..");
+        scanf("%d", &choice);
+        if (choice < 0 || choice > 6) {
+            printf("잘못 입력하였습니다. \n");
+            continue;
+        }
+        if (choice == 6) {
+            system("cls");
+            gotoxy(28, 2);
+            printf("ㅇㅇ병원 예약 시스템");
+            gotoxy(18, 4);
+            printf("****************************************\n\n");
+            gotoxy(26, 7);
+            printf("시스템이 종료되었습니다.");
+            gotoxy(26, 9);
+            printf("이용해주셔서 감사합니다.\n\n\n\n");
+            break;
+        }
+        (*pf[choice])(answer);//함수 호출
+    }
+
+    fclose(fp);
+    return 0;
+}
+
+//예약 정보를 확인하기 위해 strcmp 비교하는 함수를 사용하였고, 예약 정보가 맞는지 확인하는 함수를 써보았습니다.
+void information(p answer[]) {
+    system("cls");
+
+    char home;
+    char book;
+    char names[20];
+    char name_;
+    int age;
+    int i;
+
+    gotoxy(31, 2);
+    printf("예약 정보 확인");
+    gotoxy(18, 4);
+    printf("****************************************\n\n");
+    printf("\n\n성함을 입력해 주세요 : ");
+    scanf("%s", names);
+
+
+    for (i = 0; i < 100; i++) {
+        if (strcmp(names, answer[i].name) == 0) {
+            printf("\n성인인가요?(맞으면 0, 틀리면 1) : ");
+            scanf("%d", &age);
+
+            if (age == 0)
+                printf("\n%d월에 예약하셨고, 집주소는 %s이고, 주민등록번호는 %d이 맞으신가요?(y/n) : ", answer[i].checkup, answer[i].home, answer[i].id.adress);
+            else if (age == 1)
+                printf("\n%d월에 예약하셨고, 집주소는 %s이고, 생일은 %d이 맞으신가요?(y/n) : ", answer[i].checkup, answer[i].home, answer[i].id.birthday);
+
+            scanf(" %c", &name_);
+            if (name_ == 'n') {
+                printf("\n예약 화면으로 넘어갑니다.\n");
+                Sleep(1000); //1초 후 화면 전환
+                booking(answer);
+                return;
+            }
+            else {
+                break;
+            }
+        }
+        else {
+            printf("예약 정보가 없습니다.\n");
+            break;
+        }
+    }
+
+    printf("\n\n메인 화면으로 돌아갑니다.(y) : ");
+    scanf(" %c", &home);
+
+    if (home == 'y') {
+        return;  // price 함수 종료
+    }
+}
+
+//예약하는 함수이고, 처음왔는지 아니면 그전에 왔는지 구분하였고, 성인과 청소년으로 구분하여 주민등록 번호를 받을지 아니면 생일을 받을지 고르는 함수를 만들어 보았습니다,
+void booking(p answer[]) {
+    system("cls");
+
+    char home;
+    enum price pc;
+    char ans1;
+    int x, y;
+    char buffer[100];
+    int line_num = 0;
+
+    gotoxy(33, 2);
+    printf("진료 예약");
+    gotoxy(18, 4);
+    printf("****************************************\n\n");
+    printf("\n\n이름을 입력하세요 : ");
+    scanf("%s", answer[number].name);
+
+
+    while (1) {
+        printf("\n처음 오셨나요?(y/n) : ");
+        scanf(" %c", &ans1);
+        getchar();
+        if (ans1 != 'y' && ans1 != 'n') {
+            printf("잘못된 입력입니다. 다시 입력해주세요.\n");
+            continue;
+        }
+        else if (ans1 == 'y') {
+
+            while (fgets(buffer, 100, fp)) {
+                if (strstr(buffer, answer[number].name)) {
+                    line_num++;
+                }
+                continue;
+            }
+            if (line_num > 0) {
+                printf("이미 등록된 정보입니다.\n");
+            }
+            else {
+                printf("\n성인인가요?(맞으면 0, 틀리면 1) : ");
+                scanf("%d", &answer[number].type);
+                if (answer[number].type < 0 || answer[number].type > 1) {
+                    printf("올바른 숫자를 입력해주세요.\n");
+                    continue;
+                }
+                switch (answer[number].type) {
+                case adult:
+                    printf("\n주민등록번호를 입력하세요 : ");
+                    scanf("%d", &answer[number].id.adress);
+                    printf("\n집 주소를 입력하세요 : ");
+                    scanf("%s", answer[number].home);
+                    printf("\n등록되었습니다. \n\n");
+                    break;
+                case child:
+                    printf("\n생일을 입력하세요 : ");
+                    scanf("%d", &answer[number].id.birthday);
+                    printf("\n집 주소를 입력하세요 : ");
+                    scanf("%s", answer[number].home);
+                    printf("\n등록되었습니다. \n\n");
+                    break;
+                }
+            }
+        }
+
+        printf("\n언제 예약하시겠습니까?(월/일) : ");
+        scanf("%d/%d", &x, &y);
+
+        if (people[x][y] == 0) {
+            people[x][y] = 1;
+            answer[number].checkup = x;
+            break;
+        }
+        else {
+            printf("이미 예약되었습니다. 다시 시도해주세요.\n");
+        }
+    }
+
+    printf("\n증상을 입력하세요 : ");
+    if ((fp = fopen("checkup_list.txt", "a+")) == NULL) {
+        fprintf(stderr, "열수 없는 파일입니다. \n");
+        exit(1);
+    }
+    scanf("%s", answer[number].sort);
+    if (answer[number].type == 0)
+        fprintf(fp, "이름 : %s 주민등록번호 : %d 집주소 : %s 예약일 : %02d %02d \n", answer[number].name, answer[number].id.adress, answer[number].home, x, y);
+    else {
+        fprintf(fp, "이름 : %s 생일 : %d 집주소 : %s 예약일 : %02d %02d \n", answer[number].name, answer[number].id.birthday, answer[number].home, x, y);
+    }
+    fclose(fp);
+    printf("\n성공적으로 예약되었습니다!! \n");
+
+    printf("\n\n메인 화면으로 돌아갑니다.(y) : ");
+    scanf(" %c", &home);
+
+    if (home == 'y') {
+        return;  // price 함수 종료
+    }
+}
+
+//예약 취소하기 위한 함수
+void cancel(p answer[]) {
+    system("cls");
+
+    char home;
+    int x, y;
+    char name[100];
+    FILE* cancel_fp;  // 새로운 파일 포인터 선언
+
+    gotoxy(31, 2);
+    printf("진료 예약 취소");
+    gotoxy(18, 4);
+    printf("****************************************\n\n");
+    printf("\n\n성함과 예약날짜(월/일)를 입력하세요 : ");
+    scanf("%s %d/%d", name, &x, &y);
+
+    if (x >= 0 && x <= ROW && y >= 0 && y <= COLS) {
+        if (people[x][y] == 1) {
+            people[x][y] = 0;
+            printf("예약이 취소 되었습니다.\n");
+            cancel_fp = fopen("checkup_list.txt", "a+");  // 새로운 파일 포인터를 열기
+            if (cancel_fp == NULL) {
+                fprintf(stderr, "취소를 위한 파일을 열 수 없습니다\n");
+            }
+
+            // 파일에 예약 취소 정보 추가
+            fprintf(cancel_fp, "%s님, %d월 %d일 예약을 취소합니다.\n", name, x, y);
+
+            fclose(cancel_fp);  // 파일 포인터를 닫기
+        }
+        else {
+            printf("예약한 날짜가 아닙니다. 다시 확인해주세요. \n");
+        }
+    }
+    else {
+        printf("올바른 날짜를 입력하세요. \n");
+    }
+
+    printf("\n\n메인 화면으로 돌아갑니다.(y) : ");
+    scanf(" %c", &home);
+
+    if (home == 'y') {
+        return;  // price 함수 종료
+    }
+}
+
+//확인하고 싶은 개월을 입력하고, 그 달에 온 환자 수를 확인하는 함수입니다.
+void num(p answer[]) {
+    system("cls");
+
+    char home;
+    int x;
+    int sum = 0;
+    //char buffer[2000];
+
+    gotoxy(30, 2);
+    printf("월별 환자 수 확인");
+    gotoxy(18, 4);
+    printf("****************************************\n\n");
+    printf("\n\n확인하고 싶은 개월을 입력하세요 : ");
+    scanf("%d", &x);
+
+    if(x < 1 || x > ROW) {
+        printf("유효하지 않은 월을 입력했습니다.\n");
+    }
+    else {
+        for (int j = 0; j < COLS; j++) {
+            if (people[x][j] == 1) {
+                sum += 1;
+            }
+        }
+        printf("%d월 방문자 수는 %d명입니다.\n", x, sum);
+    }
+
+    printf("\n\n메인 화면으로 돌아갑니다.(y) : ");
+    scanf(" %c", &home);
+
+    if (home == 'y') {
+        return;  // price 함수 종료
+    }
+}
+
+//가격 확인 함수입니다.
+void price(p answer[]) {
+    system("cls");
+
+    char home;
+
+    gotoxy(29, 2);
+    printf("ㅇㅇ병원 가격 정보");
+    gotoxy(18, 4);
+    printf("****************************************");
+    gotoxy(30, 7);
+    printf("목감기.. 4000원");
+    gotoxy(30, 9);
+    printf("알러지.. 70000원");
+    gotoxy(30, 11);
+    printf("장염.. 35000원");
+    gotoxy(30, 13);
+    printf("독감.. 40000원");
+    gotoxy(30, 15);
+    printf("코로나.. 30000원");
+    gotoxy(30, 17);
+    printf("배탈.. 5000원");
+    gotoxy(30, 19);
+    printf("코감기.. 4000원");
+    gotoxy(30, 21);
+    printf("몸살감기.. 4000원\n\n");
+
+    printf("\n\n메인 화면으로 돌아갑니다.(y) : ");
+    scanf(" %c", &home);
+
+    if (home == 'y') {
+        return;  // price 함수 종료
+    }
+}
+
+void secret() {
+    printf("\nmade by 코드짜조");
+    Sleep(2000);
+}
